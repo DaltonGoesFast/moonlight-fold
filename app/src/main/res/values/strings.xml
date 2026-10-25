@@ -204,11 +204,11 @@
     <string name="title_checkbox_mouse_nav_buttons">Enable back and forward mouse buttons</string>
     <string name="summary_checkbox_mouse_nav_buttons">Enabling this option may break right clicking on some buggy devices</string>
     <string name="title_checkbox_swap_trackpad_axes">Swap trackpad X and Y axes</string>
-    <string name="summary_checkbox_swap_trackpad_axes">Exchanges horizontal and vertical movement from an external trackpad before the invert toggles. Swap plus one invert corrects a 90° or 270° rotation; both inverts without swap corrects 180°. Bluetooth mice are not affected.</string>
+    <string name="summary_checkbox_swap_trackpad_axes">Exchanges horizontal and vertical movement from an external trackpad before the invert toggles. For the common Galaxy Book Cover bug (finger up moves the cursor right), turn on Swap and Invert Y together. Bluetooth mice are not affected.</string>
     <string name="title_checkbox_invert_trackpad_x">Invert trackpad X axis</string>
-    <string name="summary_checkbox_invert_trackpad_x">Reverses horizontal movement from an external trackpad, such as the Galaxy Tab Book Cover Keyboard. Bluetooth mice are not affected.</string>
+    <string name="summary_checkbox_invert_trackpad_x">Reverses horizontal movement from an external trackpad after any swap. Use with Swap when finger up moves the cursor left. Bluetooth mice are not affected.</string>
     <string name="title_checkbox_invert_trackpad_y">Invert trackpad Y axis</string>
-    <string name="summary_checkbox_invert_trackpad_y">Reverses vertical movement from an external trackpad, such as the Galaxy Tab Book Cover Keyboard. Bluetooth mice are not affected.</string>
+    <string name="summary_checkbox_invert_trackpad_y">Reverses vertical movement from an external trackpad after any swap. Use with Swap when finger up moves the cursor right (typical Book Cover). Bluetooth mice are not affected.</string>
 
     <string name="category_on_screen_controls_settings">On-screen Controls Settings</string>
     <string name="title_checkbox_show_onscreen_controls">Show on-screen controls</string>

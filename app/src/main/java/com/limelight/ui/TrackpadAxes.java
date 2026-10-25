@@ -47,9 +47,16 @@ public final class TrackpadAxes {
                                              boolean deviceHasMouse,
                                              String deviceName,
                                              int vendorId) {
-        // sec_touchpad is the built-in digitizer on some Samsung phones, not
-        // the Book Cover Keyboard. It must not pick up these toggles.
-        if (isBuiltInSamsungDigitizer(deviceName) || deviceHasTouchscreen) {
+        // Built-in digitizers advertise SOURCE_TOUCHSCREEN (or are named
+        // sec_touchscreen). Skip those so the S Pen / panel does not pick up
+        // these toggles.
+        //
+        // Do not exclude by the name "sec_touchpad" alone: on Galaxy Tabs the
+        // Book Cover trackpad uses that name, and under pointer capture it
+        // drops TOUCHSCREEN and becomes KEYBOARD|TOUCHPAD. Excluding by name
+        // made Swap/Invert no-ops while the cursor stayed 90° clockwise of
+        // the finger (the common Samsung cover bug).
+        if (deviceHasTouchscreen || isPanelDigitizerName(deviceName)) {
             return false;
         }
         if (eventHasTouchpadSource || deviceHasTouchpadSource) {
@@ -142,16 +149,15 @@ public final class TrackpadAxes {
                 outYMax);
     }
 
-    private static boolean isBuiltInSamsungDigitizer(String deviceName) {
+    private static boolean isPanelDigitizerName(String deviceName) {
         if (deviceName == null) {
             return false;
         }
-        String name = deviceName.toLowerCase(Locale.ROOT);
-        return name.contains("sec_touchpad") || name.contains("sec_touchscreen");
+        return deviceName.toLowerCase(Locale.ROOT).contains("sec_touchscreen");
     }
 
     private static boolean nameLooksLikeCoverTrackpad(String deviceName) {
-        if (deviceName == null || nameLooksLikePlainMouse(deviceName)) {
+        if (deviceName == null || nameLooksLikePlainMouse(deviceName) || isPanelDigitizerName(deviceName)) {
             return false;
         }
         String name = deviceName.toLowerCase(Locale.ROOT);

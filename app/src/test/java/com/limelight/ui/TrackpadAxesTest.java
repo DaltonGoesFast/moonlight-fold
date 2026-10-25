@@ -38,10 +38,21 @@ public class TrackpadAxesTest {
     }
 
     @Test
-    public void builtInDigitizerNameIsExcludedEvenWithoutTouchscreen() {
-        assertFalse(TrackpadAxes.isExternalTrackpad(
-                true, true, false, true, true,
+    public void secTouchpadUnderPointerCaptureIsTheBookCover() {
+        // Galaxy Tabs name the Book Cover trackpad sec_touchpad. Before capture
+        // it has TOUCHSCREEN (excluded above); after capture it is KEYBOARD|
+        // TOUCHPAD only. That form must take the remap toggles — otherwise
+        // Swap/Invert are silent no-ops and the cursor stays 90° clockwise.
+        assertTrue(TrackpadAxes.isExternalTrackpad(
+                false, true, false, true, true,
                 "sec_touchpad", TrackpadAxes.SAMSUNG_VENDOR_ID));
+    }
+
+    @Test
+    public void secTouchscreenDigitizerNameIsNotACoverFallback() {
+        assertFalse(TrackpadAxes.isExternalTrackpad(
+                false, false, false, true, true,
+                "sec_touchscreen", TrackpadAxes.SAMSUNG_VENDOR_ID));
     }
 
     @Test

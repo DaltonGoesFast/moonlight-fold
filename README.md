@@ -41,13 +41,15 @@ Other identifiers:
 | --- | --- | --- |
 | Application id | `com.limelight` | `com.limelight.custom` |
 | Launcher name | Moonlight | Moonlight Fold |
-| Version | 12.2 | 12.2-fold.3 |
+| Version | 12.2 | 12.2-fold.4 |
 
 The debug APK includes the upstream ABIs (arm64-v8a, armeabi-v7a, x86, x86_64). The Galaxy Z Fold 6 uses arm64-v8a.
 
 Open the keyboard in a stream with a three-finger tap, the same gesture as upstream Moonlight.
 
-Input Settings also has three external-trackpad toggles, all off by default: **Swap trackpad X and Y axes**, **Invert trackpad X axis**, and **Invert trackpad Y axis**. They apply to the same detected devices (the Galaxy Tab S8 Ultra Book Cover Keyboard and other keyboard-cover trackpads), in both the pointer-capture relative path and the absolute fallback used when pointer capture is unavailable. A Bluetooth mouse is left alone: under pointer capture both devices send `SOURCE_MOUSE_RELATIVE` events, and the trackpad is recognized because the device still advertises `SOURCE_TOUCHPAD` (or its name is a keyboard cover). The on-screen touchscreen trackpad is not affected.
+Input Settings also has three external-trackpad toggles, all off by default: **Swap trackpad X and Y axes**, **Invert trackpad X axis**, and **Invert trackpad Y axis**. They apply to keyboard-cover trackpads (Galaxy Tab Book Cover and similar), including the Samsung device that appears as `sec_touchpad` with `KEYBOARD|TOUCHPAD` once pointer capture is on. A Bluetooth mouse is left alone. Built-in digitizers that still advertise `SOURCE_TOUCHSCREEN` are ignored, as is the on-screen touchscreen trackpad.
+
+On many Galaxy Tabs the Book Cover reports deltas rotated 90° clockwise under pointer capture (finger up moves the cursor right). That is undone by **Swap + Invert Y**. The toggles are re-read while streaming, so split-screen settings changes apply without reconnecting.
 
 Axes are remapped in a fixed order: **swap X and Y first**, then **invert X**, then **invert Y**. +X is right and +Y is down. On the absolute path the reference maxima are swapped in the same step as the coordinates, and each invert reflects the position inside that new range.
 
@@ -62,17 +64,17 @@ Axes are remapped in a fixed order: **swap X and Y first**, then **invert X**, t
 | on | off | on | (y, −x) | 90° counter-clockwise (270° clockwise) |
 | on | on | on | (−y, −x) | anti-diagonal mirror |
 
-If the cover's cursor is 90° clockwise of the finger (finger up moves the cursor right, finger right moves it down), turn on **Swap** and **Invert Y**. If the cursor is 90° counter-clockwise of the finger, turn on **Swap** and **Invert X**. If movement is simply reversed, turn on both inverts and leave swap off. The toggles are read when a stream starts.
+If the cover's cursor is 90° clockwise of the finger (finger up moves the cursor right, finger right moves it down), turn on **Swap** and **Invert Y**. If the cursor is 90° counter-clockwise of the finger, turn on **Swap** and **Invert X**. If movement is simply reversed, turn on both inverts and leave swap off.
 
 ## Sideload
 
 The debug APK is signed with the Android debug keystore. It does not update the official app; install it beside it.
 
 1. On the phone or tablet, enable Developer options and USB debugging, or allow installs from your file manager ("Install unknown apps").
-2. Copy `moonlight-fold.3-nonRoot-debug.apk` to the phone and open it, or from a computer:
+2. Copy `moonlight-fold.4-nonRoot-debug.apk` to the phone and open it, or from a computer:
 
 ```bash
-adb install -r moonlight-fold.3-nonRoot-debug.apk
+adb install -r moonlight-fold.4-nonRoot-debug.apk
 ```
 
 3. Launch **Moonlight Fold**. Pair and stream as usual. The pin-to-top option is already on; turn it off under Basic Settings if you want the keyboard to overlay the stream the way official Moonlight does.

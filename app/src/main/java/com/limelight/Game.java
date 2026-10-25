@@ -1977,8 +1977,12 @@ public class Game extends Activity implements SurfaceHolder.Callback,
      * The remap itself is swap, then invert X, then invert Y.
      */
     private boolean shouldRemapExternalTrackpad(MotionEvent event) {
-        if (prefConfig == null
-                || (!prefConfig.swapTrackpadAxes && !prefConfig.invertTrackpadX && !prefConfig.invertTrackpadY)) {
+        if (prefConfig == null) {
+            return false;
+        }
+        // Live-read so Input Settings changed in split-screen apply immediately.
+        prefConfig.refreshTrackpadAxes(this);
+        if (!prefConfig.swapTrackpadAxes && !prefConfig.invertTrackpadX && !prefConfig.invertTrackpadY) {
             return false;
         }
         if (!isExternalTrackpadEvent(event)) {

@@ -454,6 +454,20 @@ public class PreferenceConfiguration {
                 Build.FINGERPRINT.contains("PPR1.180610.011/4079208_2235.1395");
     }
 
+    /**
+     * Re-read trackpad remap toggles. Safe to call during a stream so split-screen
+     * settings changes apply without reconnecting.
+     */
+    public void refreshTrackpadAxes(Context context) {
+        refreshTrackpadAxes(PreferenceManager.getDefaultSharedPreferences(context));
+    }
+
+    public void refreshTrackpadAxes(SharedPreferences prefs) {
+        swapTrackpadAxes = prefs.getBoolean(SWAP_TRACKPAD_AXES_PREF_STRING, DEFAULT_SWAP_TRACKPAD_AXES);
+        invertTrackpadX = prefs.getBoolean(INVERT_TRACKPAD_X_PREF_STRING, DEFAULT_INVERT_TRACKPAD_X);
+        invertTrackpadY = prefs.getBoolean(INVERT_TRACKPAD_Y_PREF_STRING, DEFAULT_INVERT_TRACKPAD_Y);
+    }
+
     public static PreferenceConfiguration readPreferences(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         PreferenceConfiguration config = new PreferenceConfiguration();
@@ -607,9 +621,7 @@ public class PreferenceConfiguration {
         config.touchscreenTrackpad = prefs.getBoolean(TOUCHSCREEN_TRACKPAD_PREF_STRING, DEFAULT_TOUCHSCREEN_TRACKPAD);
         config.enableLatencyToast = prefs.getBoolean(LATENCY_TOAST_PREF_STRING, DEFAULT_LATENCY_TOAST);
         config.absoluteMouseMode = prefs.getBoolean(ABSOLUTE_MOUSE_MODE_PREF_STRING, DEFAULT_ABSOLUTE_MOUSE_MODE);
-        config.swapTrackpadAxes = prefs.getBoolean(SWAP_TRACKPAD_AXES_PREF_STRING, DEFAULT_SWAP_TRACKPAD_AXES);
-        config.invertTrackpadX = prefs.getBoolean(INVERT_TRACKPAD_X_PREF_STRING, DEFAULT_INVERT_TRACKPAD_X);
-        config.invertTrackpadY = prefs.getBoolean(INVERT_TRACKPAD_Y_PREF_STRING, DEFAULT_INVERT_TRACKPAD_Y);
+        config.refreshTrackpadAxes(prefs);
         config.enableAudioFx = prefs.getBoolean(ENABLE_AUDIO_FX_PREF_STRING, DEFAULT_ENABLE_AUDIO_FX);
         config.reduceRefreshRate = prefs.getBoolean(REDUCE_REFRESH_RATE_PREF_STRING, DEFAULT_REDUCE_REFRESH_RATE);
         config.fullRange = prefs.getBoolean(FULL_RANGE_PREF_STRING, DEFAULT_FULL_RANGE);
