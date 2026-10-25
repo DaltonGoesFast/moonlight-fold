@@ -1970,13 +1970,15 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     }
 
     /**
-     * Book Cover Keyboard trackpads are inverted on some Galaxy Tabs, while a
-     * Bluetooth mouse on the same tablet is not. Both arrive as relative mouse
-     * events during pointer capture, so this checks the device, not just the
-     * event source. No-op unless an invert toggle is on.
+     * Book Cover Keyboard trackpads can be rotated or mirrored on some Galaxy
+     * Tabs, while a Bluetooth mouse on the same tablet is not. Both arrive as
+     * relative mouse events during pointer capture, so this checks the device,
+     * not just the event source. No-op unless swap or an invert toggle is on.
+     * The remap itself is swap, then invert X, then invert Y.
      */
-    private boolean shouldInvertExternalTrackpad(MotionEvent event) {
-        if (prefConfig == null || (!prefConfig.invertTrackpadX && !prefConfig.invertTrackpadY)) {
+    private boolean shouldRemapExternalTrackpad(MotionEvent event) {
+        if (prefConfig == null
+                || (!prefConfig.swapTrackpadAxes && !prefConfig.invertTrackpadX && !prefConfig.invertTrackpadY)) {
             return false;
         }
         if (!isExternalTrackpadEvent(event)) {
@@ -1985,10 +1987,11 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         int deviceId = event.getDeviceId();
         if (notedTrackpadDevices.add(deviceId)) {
             InputDevice device = event.getDevice();
-            LimeLog.info("Inverting external trackpad id=" + deviceId
+            LimeLog.info("Remapping external trackpad id=" + deviceId
                     + " name=" + (device != null ? device.getName() : "?")
                     + " eventSource=0x" + Integer.toHexString(event.getSource())
                     + " deviceSources=0x" + Integer.toHexString(device != null ? device.getSources() : 0)
+                    + " swap=" + prefConfig.swapTrackpadAxes
                     + " invertX=" + prefConfig.invertTrackpadX
                     + " invertY=" + prefConfig.invertTrackpadY);
         }
@@ -2089,9 +2092,15 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                     // Send the deltas straight from the motion event
                     float axisX = inputCaptureProvider.getRelativeAxisX(event);
                     float axisY = inputCaptureProvider.getRelativeAxisY(event);
-                    if (shouldInvertExternalTrackpad(event)) {
-                        axisX = TrackpadAxes.invert(axisX, prefConfig.invertTrackpadX);
-                        axisY = TrackpadAxes.invert(axisY, prefConfig.invertTrackpadY);
+                    if (shouldRemapExternalTrackpad(event)) {
+                        // Swap first, then invert each axis. See TrackpadAxes.remap.
+                        TrackpadAxes.Delta remapped = TrackpadAxes.remap(
+                                axisX, axisY,
+                                prefConfig.swapTrackpadAxes,
+                                prefConfig.invertTrackpadX,
+                                prefConfig.invertTrackpadY);
+                        axisX = remapped.x;
+                        axisY = remapped.y;
                     }
                     short deltaX = (short) axisX;
                     short deltaY = (short) axisY;
@@ -2129,9 +2138,17 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                             if (xMax <= Short.MAX_VALUE && yMax <= Short.MAX_VALUE) {
                                 int axisX = (int) event.getX();
                                 int axisY = (int) event.getY();
-                                if (shouldInvertExternalTrackpad(event)) {
-                                    axisX = TrackpadAxes.reflect(axisX, xMax, prefConfig.invertTrackpadX);
-                                    axisY = TrackpadAxes.reflect(axisY, yMax, prefConfig.invertTrackpadY);
+                                if (shouldRemapExternalTrackpad(event)) {
+                                    // Swap axes and their ranges together, then reflect.
+                                    TrackpadAxes.Absolute remapped = TrackpadAxes.remapAbsolute(
+                                            axisX, axisY, xMax, yMax,
+                                            prefConfig.swapTrackpadAxes,
+                                            prefConfig.invertTrackpadX,
+                                            prefConfig.invertTrackpadY);
+                                    axisX = remapped.x;
+                                    axisY = remapped.y;
+                                    xMax = remapped.xMax;
+                                    yMax = remapped.yMax;
                                 }
                                 conn.sendMousePosition((short) axisX, (short) axisY,
                                                        (short) xMax, (short) yMax);

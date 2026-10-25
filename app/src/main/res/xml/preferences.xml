@@ -150,6 +150,11 @@
             android:summary="@string/summary_checkbox_absolute_mouse_mode"
             android:defaultValue="false" />
         <CheckBoxPreference
+            android:key="checkbox_swap_trackpad_axes"
+            android:title="@string/title_checkbox_swap_trackpad_axes"
+            android:summary="@string/summary_checkbox_swap_trackpad_axes"
+            android:defaultValue="false" />
+        <CheckBoxPreference
             android:key="checkbox_invert_trackpad_x"
             android:title="@string/title_checkbox_invert_trackpad_x"
             android:summary="@string/summary_checkbox_invert_trackpad_x"

@@ -4,7 +4,7 @@ import java.util.Locale;
 
 /**
  * Decides whether a pointer is the external keyboard-cover trackpad, and how
- * to flip its axes. Bluetooth mice stay untouched.
+ * to remap its axes. Bluetooth mice stay untouched.
  *
  * <p>Android reports a touchpad's <em>device</em> sources as
  * {@code SOURCE_MOUSE | SOURCE_TOUCHPAD}, but {@code MotionEvent.getSource()}
@@ -12,6 +12,27 @@ import java.util.Locale;
  * while pointer capture is active. A Bluetooth mouse uses that same event
  * source and does not advertise {@code SOURCE_TOUCHPAD}. Callers pass those
  * facts in as booleans computed from the platform constants.
+ *
+ * <p>When a remap is requested, the order is always:
+ * <ol>
+ * <li>Swap X and Y (and, for absolute positions, their reference maxima).</li>
+ * <li>Invert the resulting X axis.</li>
+ * <li>Invert the resulting Y axis.</li>
+ * </ol>
+ * +X is right and +Y is down. Applied to a reported relative delta {@code (x, y)}:
+ * <ul>
+ * <li>no swap, no invert — {@code (x, y)}, unchanged</li>
+ * <li>invert X — {@code (-x, y)}, left/right mirror</li>
+ * <li>invert Y — {@code (x, -y)}, up/down mirror</li>
+ * <li>invert X and invert Y — {@code (-x, -y)}, 180°</li>
+ * <li>swap — {@code (y, x)}, reflection across the diagonal</li>
+ * <li>swap and invert X — {@code (-y, x)}, 90° clockwise</li>
+ * <li>swap and invert Y — {@code (y, -x)}, 90° counter-clockwise (270° clockwise)</li>
+ * <li>swap and both inverts — {@code (-y, -x)}, reflection across the anti-diagonal</li>
+ * </ul>
+ * Those three rotations, plus the identity, are every multiple of 90°. A cover
+ * whose cursor is 90° clockwise of the finger (finger up moves the cursor
+ * right) is undone by swap and invert Y.
  */
 public final class TrackpadAxes {
     /** Samsung Electronics, used only when the touchpad source bit is missing. */
@@ -63,6 +84,62 @@ public final class TrackpadAxes {
             return max;
         }
         return reflected;
+    }
+
+    /** Relative delta after swap, then invert X, then invert Y. */
+    public static final class Delta {
+        public final float x;
+        public final float y;
+
+        public Delta(float x, float y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    /**
+     * Remap a pointer-capture delta. Swap is applied to the reported axes
+     * before either invert, so swap plus one invert is a 90° rotation rather
+     * than a mirror of an already-rotated vector.
+     */
+    public static Delta remap(float x, float y, boolean swap, boolean invertX, boolean invertY) {
+        float outX = swap ? y : x;
+        float outY = swap ? x : y;
+        return new Delta(invert(outX, invertX), invert(outY, invertY));
+    }
+
+    /** Absolute position, with the reference maxima swapped alongside the axes. */
+    public static final class Absolute {
+        public final int x;
+        public final int y;
+        public final int xMax;
+        public final int yMax;
+
+        public Absolute(int x, int y, int xMax, int yMax) {
+            this.x = x;
+            this.y = y;
+            this.xMax = xMax;
+            this.yMax = yMax;
+        }
+    }
+
+    /**
+     * Remap a pre-capture absolute touchpad position. The axis ranges are
+     * exchanged in the same step as the coordinates, then each axis is
+     * reflected inside its new range. Sending the original maxima after a
+     * swap would scale the cursor against the wrong axis.
+     */
+    public static Absolute remapAbsolute(int x, int y, int xMax, int yMax,
+                                         boolean swap, boolean invertX, boolean invertY) {
+        int outX = swap ? y : x;
+        int outY = swap ? x : y;
+        int outXMax = swap ? yMax : xMax;
+        int outYMax = swap ? xMax : yMax;
+        return new Absolute(
+                reflect(outX, outXMax, invertX),
+                reflect(outY, outYMax, invertY),
+                outXMax,
+                outYMax);
     }
 
     private static boolean isBuiltInSamsungDigitizer(String deviceName) {
