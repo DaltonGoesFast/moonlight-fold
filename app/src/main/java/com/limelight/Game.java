@@ -32,6 +32,7 @@ import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.ui.GameGestures;
 import com.limelight.ui.KeyboardStreamLayout;
 import com.limelight.ui.StreamView;
+import com.limelight.ui.TrackpadAxes;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
@@ -86,6 +87,7 @@ import android.widget.Toast;
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashSet;
 import java.util.List;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -153,6 +155,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private TextView performanceOverlayView;
     private ViewTreeObserver.OnGlobalLayoutListener keyboardLayoutListener;
     private boolean keyboardLayoutUpdatePosted;
+    private final HashSet<Integer> notedTrackpadDevices = new HashSet<>();
 
     private MediaCodecDecoderRenderer decoderRenderer;
     private boolean reportedCrash;
@@ -1966,6 +1969,58 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         }
     }
 
+    /**
+     * Book Cover Keyboard trackpads are inverted on some Galaxy Tabs, while a
+     * Bluetooth mouse on the same tablet is not. Both arrive as relative mouse
+     * events during pointer capture, so this checks the device, not just the
+     * event source. No-op unless an invert toggle is on.
+     */
+    private boolean shouldInvertExternalTrackpad(MotionEvent event) {
+        if (prefConfig == null || (!prefConfig.invertTrackpadX && !prefConfig.invertTrackpadY)) {
+            return false;
+        }
+        if (!isExternalTrackpadEvent(event)) {
+            return false;
+        }
+        int deviceId = event.getDeviceId();
+        if (notedTrackpadDevices.add(deviceId)) {
+            InputDevice device = event.getDevice();
+            LimeLog.info("Inverting external trackpad id=" + deviceId
+                    + " name=" + (device != null ? device.getName() : "?")
+                    + " eventSource=0x" + Integer.toHexString(event.getSource())
+                    + " deviceSources=0x" + Integer.toHexString(device != null ? device.getSources() : 0)
+                    + " invertX=" + prefConfig.invertTrackpadX
+                    + " invertY=" + prefConfig.invertTrackpadY);
+        }
+        return true;
+    }
+
+    private static boolean isExternalTrackpadEvent(MotionEvent event) {
+        InputDevice device = event.getDevice();
+        int deviceSources = device != null ? device.getSources() : 0;
+        return TrackpadAxes.isExternalTrackpad(
+                hasTouchpadSource(event.getSource()),
+                hasTouchpadSource(deviceSources),
+                (deviceSources & InputDevice.SOURCE_TOUCHSCREEN) == InputDevice.SOURCE_TOUCHSCREEN,
+                (deviceSources & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD,
+                hasMouseSource(deviceSources),
+                device != null ? device.getName() : null,
+                device != null ? device.getVendorId() : 0);
+    }
+
+    // Touchpads advertise SOURCE_TOUCHPAD on the device. The event itself is
+    // often SOURCE_MOUSE or SOURCE_MOUSE_RELATIVE. SOURCE_CLASS_POSITION is the
+    // class bit inside SOURCE_TOUCHPAD and is not set on mice.
+    private static boolean hasTouchpadSource(int sources) {
+        return (sources & InputDevice.SOURCE_TOUCHPAD) == InputDevice.SOURCE_TOUCHPAD
+                || (sources & InputDevice.SOURCE_CLASS_POSITION) != 0;
+    }
+
+    private static boolean hasMouseSource(int sources) {
+        return (sources & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE
+                || (sources & InputDevice.SOURCE_MOUSE_RELATIVE) == InputDevice.SOURCE_MOUSE_RELATIVE;
+    }
+
     // Returns true if the event was consumed
     // NB: View is only present if called from a view callback
     private boolean handleMotionEvent(View view, MotionEvent event) {
@@ -2032,8 +2087,14 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 // significantly different than before.
                 if (inputCaptureProvider.eventHasRelativeMouseAxes(event)) {
                     // Send the deltas straight from the motion event
-                    short deltaX = (short)inputCaptureProvider.getRelativeAxisX(event);
-                    short deltaY = (short)inputCaptureProvider.getRelativeAxisY(event);
+                    float axisX = inputCaptureProvider.getRelativeAxisX(event);
+                    float axisY = inputCaptureProvider.getRelativeAxisY(event);
+                    if (shouldInvertExternalTrackpad(event)) {
+                        axisX = TrackpadAxes.invert(axisX, prefConfig.invertTrackpadX);
+                        axisY = TrackpadAxes.invert(axisY, prefConfig.invertTrackpadY);
+                    }
+                    short deltaX = (short) axisX;
+                    short deltaY = (short) axisY;
 
                     if (deltaX != 0 || deltaY != 0) {
                         if (prefConfig.absoluteMouseMode) {
@@ -2066,8 +2127,14 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
                             // Touchpads must be smaller than (65535, 65535)
                             if (xMax <= Short.MAX_VALUE && yMax <= Short.MAX_VALUE) {
-                                conn.sendMousePosition((short)event.getX(), (short)event.getY(),
-                                                       (short)xMax, (short)yMax);
+                                int axisX = (int) event.getX();
+                                int axisY = (int) event.getY();
+                                if (shouldInvertExternalTrackpad(event)) {
+                                    axisX = TrackpadAxes.reflect(axisX, xMax, prefConfig.invertTrackpadX);
+                                    axisY = TrackpadAxes.reflect(axisY, yMax, prefConfig.invertTrackpadY);
+                                }
+                                conn.sendMousePosition((short) axisX, (short) axisY,
+                                                       (short) xMax, (short) yMax);
                             }
                         }
                     }

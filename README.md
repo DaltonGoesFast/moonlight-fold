@@ -41,21 +41,23 @@ Other identifiers:
 | --- | --- | --- |
 | Application id | `com.limelight` | `com.limelight.custom` |
 | Launcher name | Moonlight | Moonlight Fold |
-| Version | 12.2 | 12.2-fold |
+| Version | 12.2 | 12.2-fold.2 |
 
 The debug APK includes the upstream ABIs (arm64-v8a, armeabi-v7a, x86, x86_64). The Galaxy Z Fold 6 uses arm64-v8a.
 
 Open the keyboard in a stream with a three-finger tap, the same gesture as upstream Moonlight.
+
+Input Settings also has **Invert trackpad X axis** and **Invert trackpad Y axis**, both off by default. They flip movement from an external trackpad such as the Galaxy Tab S8 Ultra Book Cover Keyboard. A Bluetooth mouse is left alone: under pointer capture both devices send `SOURCE_MOUSE_RELATIVE` events, and the trackpad is recognized because the device still advertises `SOURCE_TOUCHPAD` (or its name is a keyboard cover). The on-screen touchscreen trackpad is not affected.
 
 ## Sideload
 
 The debug APK is signed with the Android debug keystore. It does not update the official app; install it beside it.
 
 1. On the Fold, enable Developer options and USB debugging, or allow installs from your file manager ("Install unknown apps").
-2. Copy `moonlight-fold-nonRoot-debug.apk` to the phone and open it, or from a computer:
+2. Copy `moonlight-fold.2-nonRoot-debug.apk` to the phone and open it, or from a computer:
 
 ```bash
-adb install -r moonlight-fold-nonRoot-debug.apk
+adb install -r moonlight-fold.2-nonRoot-debug.apk
 ```
 
 3. Launch **Moonlight Fold**. Pair and stream as usual. The pin-to-top option is already on; turn it off under Basic Settings if you want the keyboard to overlay the stream the way official Moonlight does.

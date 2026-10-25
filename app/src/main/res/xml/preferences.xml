@@ -149,6 +149,16 @@
             android:title="@string/title_checkbox_absolute_mouse_mode"
             android:summary="@string/summary_checkbox_absolute_mouse_mode"
             android:defaultValue="false" />
+        <CheckBoxPreference
+            android:key="checkbox_invert_trackpad_x"
+            android:title="@string/title_checkbox_invert_trackpad_x"
+            android:summary="@string/summary_checkbox_invert_trackpad_x"
+            android:defaultValue="false" />
+        <CheckBoxPreference
+            android:key="checkbox_invert_trackpad_y"
+            android:title="@string/title_checkbox_invert_trackpad_y"
+            android:summary="@string/summary_checkbox_invert_trackpad_y"
+            android:defaultValue="false" />
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/category_on_screen_controls_settings"
         android:key="category_onscreen_controls">
