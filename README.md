@@ -53,7 +53,7 @@ Input Settings also has **Invert trackpad X axis** and **Invert trackpad Y axis*
 
 The debug APK is signed with the Android debug keystore. It does not update the official app; install it beside it.
 
-1. On the Fold, enable Developer options and USB debugging, or allow installs from your file manager ("Install unknown apps").
+1. On the phone or tablet, enable Developer options and USB debugging, or allow installs from your file manager ("Install unknown apps").
 2. Copy `moonlight-fold.2-nonRoot-debug.apk` to the phone and open it, or from a computer:
 
 ```bash
