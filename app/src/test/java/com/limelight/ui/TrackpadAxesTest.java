@@ -150,6 +150,25 @@ public class TrackpadAxesTest {
     }
 
     @Test
+    public void classicTwoFingerScrollUsesMouseWheelDirection() {
+        // Finger down (positive Y) scrolls down: negative high-res wheel.
+        TrackpadAxes.Scroll down = TrackpadAxes.classicTwoFingerScroll(0f, 3f);
+        assertEquals((short) (-3f * TrackpadAxes.TWO_FINGER_SCROLL_SCALE), down.vertical);
+        assertEquals((short) 0, down.horizontal);
+
+        // Finger right scrolls right.
+        TrackpadAxes.Scroll right = TrackpadAxes.classicTwoFingerScroll(4f, 0f);
+        assertEquals((short) 0, right.vertical);
+        assertEquals((short) (4f * TrackpadAxes.TWO_FINGER_SCROLL_SCALE), right.horizontal);
+
+        // Diagonal after a Swap+Invert-Y remap still maps through the same formula.
+        TrackpadAxes.Delta remapped = TrackpadAxes.remap(3f, -2f, true, false, true);
+        TrackpadAxes.Scroll scrolled = TrackpadAxes.classicTwoFingerScroll(remapped.x, remapped.y);
+        assertEquals((short) (-remapped.y * TrackpadAxes.TWO_FINGER_SCROLL_SCALE), scrolled.vertical);
+        assertEquals((short) (remapped.x * TrackpadAxes.TWO_FINGER_SCROLL_SCALE), scrolled.horizontal);
+    }
+
+    @Test
     public void absoluteRemapSwapsRangesBeforeReflecting() {
         TrackpadAxes.Absolute identity = TrackpadAxes.remapAbsolute(
                 100, 400, 1000, 2000, false, false, false);

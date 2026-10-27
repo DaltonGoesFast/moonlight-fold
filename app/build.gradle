@@ -11,8 +11,8 @@ android {
         minSdk 21
         targetSdk 36
 
-        versionName "12.2-fold.4"
-        versionCode = 316
+        versionName "12.2-fold.5"
+        versionCode = 317
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'
@@ -23,6 +23,18 @@ android {
     buildFeatures {
         buildConfig = true
         resValues = true
+    }
+
+    // Stable sideload signing so updates install over previous Moonlight Fold
+    // builds without uninstalling (and without re-pairing hosts). This is a
+    // copy of the debug key that signed v12.2-fold.4; keep using this file.
+    signingConfigs {
+        fold {
+            storeFile file("${rootProject.projectDir}/keystore/moonlight-fold.jks")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
     }
 
     productFlavors {
@@ -87,10 +99,12 @@ android {
         debug {
             // The flavor id is already com.limelight.custom, so this debug
             // build installs beside official Moonlight and official debug builds.
+            signingConfig signingConfigs.fold
             resValue "string", "app_label", "Moonlight Fold"
             resValue "string", "app_label_root", "Moonlight Fold (Root)"
         }
         release {
+            signingConfig signingConfigs.fold
             // To whomever is releasing/using an APK in release mode with
             // Moonlight's official application ID, please stop. I see every
             // single one of your crashes in my Play Console and it makes

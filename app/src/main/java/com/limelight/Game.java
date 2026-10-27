@@ -2106,17 +2106,33 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                         axisX = remapped.x;
                         axisY = remapped.y;
                     }
-                    short deltaX = (short) axisX;
-                    short deltaY = (short) axisY;
 
-                    if (deltaX != 0 || deltaY != 0) {
-                        if (prefConfig.absoluteMouseMode) {
-                            // NB: view may be null, but we can unconditionally use streamView because we don't need to adjust
-                            // relative axis deltas for the position of the streamView within the parent's coordinate system.
-                            conn.sendMouseMoveAsMousePosition(deltaX, deltaY, (short)streamView.getWidth(), (short)streamView.getHeight());
+                    // Samsung Book Cover (and similar) send two-finger scroll as
+                    // ACTION_MOVE with pointerCount == 2 on the relative axes,
+                    // not ACTION_SCROLL with AXIS_VSCROLL. Treat that as a
+                    // classic mouse wheel instead of cursor motion.
+                    // See moonlight-android#1569 / #1259.
+                    if (event.getPointerCount() == 2 && isExternalTrackpadEvent(event)) {
+                        if (axisX != 0 || axisY != 0) {
+                            TrackpadAxes.Scroll scroll =
+                                    TrackpadAxes.classicTwoFingerScroll(axisX, axisY);
+                            conn.sendMouseHighResScroll(scroll.vertical);
+                            conn.sendMouseHighResHScroll(scroll.horizontal);
                         }
-                        else {
-                            conn.sendMouseMove(deltaX, deltaY);
+                    }
+                    else {
+                        short deltaX = (short) axisX;
+                        short deltaY = (short) axisY;
+
+                        if (deltaX != 0 || deltaY != 0) {
+                            if (prefConfig.absoluteMouseMode) {
+                                // NB: view may be null, but we can unconditionally use streamView because we don't need to adjust
+                                // relative axis deltas for the position of the streamView within the parent's coordinate system.
+                                conn.sendMouseMoveAsMousePosition(deltaX, deltaY, (short)streamView.getWidth(), (short)streamView.getHeight());
+                            }
+                            else {
+                                conn.sendMouseMove(deltaX, deltaY);
+                            }
                         }
                     }
                 }

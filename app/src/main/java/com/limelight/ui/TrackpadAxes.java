@@ -115,6 +115,42 @@ public final class TrackpadAxes {
         return new Delta(invert(outX, invertX), invert(outY, invertY));
     }
 
+    /**
+     * Scale from remapped relative finger deltas to Moonlight high-res wheel
+     * units. Matches the factor used by moonlight-android#1569.
+     */
+    public static final float TWO_FINGER_SCROLL_SCALE = 10f;
+
+    /**
+     * Classic mouse-wheel amounts from a two-finger trackpad move.
+     * {@code vertical} is for {@code sendMouseHighResScroll},
+     * {@code horizontal} for {@code sendMouseHighResHScroll}.
+     *
+     * <p>Samsung Book Cover keyboards report two-finger scroll as
+     * {@code ACTION_MOVE} with {@code pointerCount == 2} on the relative
+     * axes, not {@code ACTION_SCROLL}. After the same remap used for the
+     * cursor, convert those deltas to wheel ticks: finger down (positive Y)
+     * scrolls down like rolling a wheel toward you; finger right scrolls
+     * right.
+     */
+    public static final class Scroll {
+        public final short vertical;
+        public final short horizontal;
+
+        public Scroll(short vertical, short horizontal) {
+            this.vertical = vertical;
+            this.horizontal = horizontal;
+        }
+    }
+
+    public static Scroll classicTwoFingerScroll(float remappedDeltaX, float remappedDeltaY) {
+        // Classic (naturalScroll=false) from moonlight-android#1569:
+        // v = -y * scale, h = x * scale
+        return new Scroll(
+                (short) (-remappedDeltaY * TWO_FINGER_SCROLL_SCALE),
+                (short) (remappedDeltaX * TWO_FINGER_SCROLL_SCALE));
+    }
+
     /** Absolute position, with the reference maxima swapped alongside the axes. */
     public static final class Absolute {
         public final int x;
