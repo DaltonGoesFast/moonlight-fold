@@ -33,6 +33,7 @@ import com.limelight.ui.GameGestures;
 import com.limelight.ui.KeyboardStreamLayout;
 import com.limelight.ui.StreamView;
 import com.limelight.ui.TrackpadAxes;
+import com.limelight.ui.TrackpadTapClick;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
@@ -100,6 +101,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         OnSystemUiVisibilityChangeListener, GameGestures, StreamView.InputCallbacks,
         PerfOverlayListener, UsbDriverService.UsbDriverStateListener, View.OnKeyListener {
     private int lastButtonState = 0;
+    private final TrackpadTapClick trackpadTapClick = new TrackpadTapClick();
 
     // Only 2 touches are supported
     private final TouchContext[] touchContextMap = new TouchContext[2];
@@ -2062,6 +2064,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             {
                 int buttonState = event.getButtonState();
                 int changedButtons = buttonState ^ lastButtonState;
+                boolean externalTrackpad = isExternalTrackpadEvent(event);
 
                 // The DeX touchpad on the Fold 4 sends proper right click events using BUTTON_SECONDARY,
                 // but doesn't send BUTTON_PRIMARY for a regular click. Instead it sends ACTION_DOWN/UP,
@@ -2080,6 +2083,22 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                     }
 
                     changedButtons = buttonState ^ lastButtonState;
+                }
+
+                // Book Cover trackpads under pointer capture: OS tap-to-click often
+                // never sets BUTTON_PRIMARY (physical click-pad press still does).
+                // Track a short, still contact and synthesize a left click on lift.
+                if (externalTrackpad) {
+                    if ((buttonState & MotionEvent.BUTTON_PRIMARY) != 0
+                            || event.getPointerCount() >= 2) {
+                        trackpadTapClick.cancel();
+                    }
+                    else if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                        trackpadTapClick.onDown(event.getEventTime());
+                    }
+                    else if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                        trackpadTapClick.cancel();
+                    }
                 }
 
                 // Ignore mouse input if we're not capturing from our input source
@@ -2112,7 +2131,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                     // not ACTION_SCROLL with AXIS_VSCROLL. Treat that as a
                     // classic mouse wheel instead of cursor motion.
                     // See moonlight-android#1569 / #1259.
-                    if (event.getPointerCount() == 2 && isExternalTrackpadEvent(event)) {
+                    if (event.getPointerCount() == 2 && externalTrackpad) {
                         if (axisX != 0 || axisY != 0) {
                             TrackpadAxes.Scroll scroll =
                                     TrackpadAxes.classicTwoFingerScroll(axisX, axisY);
@@ -2121,6 +2140,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                         }
                     }
                     else {
+                        if (externalTrackpad) {
+                            trackpadTapClick.onMove(axisX, axisY);
+                        }
                         short deltaX = (short) axisX;
                         short deltaY = (short) axisY;
 
@@ -2196,6 +2218,19 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                         conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_LEFT);
                     }
                     else {
+                        conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
+                    }
+                }
+
+                // Always end the tap gesture on lift so a slide does not leave
+                // contact stuck active; only fire a click when it was a tap and
+                // the OS did not already deliver BUTTON_PRIMARY.
+                if (externalTrackpad && event.getActionMasked() == MotionEvent.ACTION_UP) {
+                    boolean tapped = trackpadTapClick.onUp(event.getEventTime());
+                    if (tapped
+                            && (changedButtons & MotionEvent.BUTTON_PRIMARY) == 0
+                            && (buttonState & MotionEvent.BUTTON_PRIMARY) == 0) {
+                        conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_LEFT);
                         conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
                     }
                 }

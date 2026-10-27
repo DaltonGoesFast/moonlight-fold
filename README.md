@@ -41,7 +41,7 @@ Other identifiers:
 | --- | --- | --- |
 | Application id | `com.limelight` | `com.limelight.custom` |
 | Launcher name | Moonlight | Moonlight Fold |
-| Version | 12.2 | 12.2-fold.5 |
+| Version | 12.2 | 12.2-fold.6 |
 
 The debug APK includes the upstream ABIs (arm64-v8a, armeabi-v7a, x86, x86_64). The Galaxy Z Fold 6 uses arm64-v8a.
 
@@ -49,7 +49,7 @@ Open the keyboard in a stream with a three-finger tap, the same gesture as upstr
 
 Input Settings also has three external-trackpad toggles, all off by default: **Swap trackpad X and Y axes**, **Invert trackpad X axis**, and **Invert trackpad Y axis**. They apply to keyboard-cover trackpads (Galaxy Tab Book Cover and similar), including the Samsung device that appears as `sec_touchpad` with `KEYBOARD|TOUCHPAD` once pointer capture is on. A Bluetooth mouse is left alone. Built-in digitizers that still advertise `SOURCE_TOUCHSCREEN` are ignored, as is the on-screen touchscreen trackpad.
 
-Two-finger scroll on those covers is translated to a classic mouse wheel (Samsung reports it as a two-pointer move, not `ACTION_SCROLL`). Remap toggles apply to the scroll deltas the same way they do to the cursor. Pinch-to-zoom and click-and-drag-with-second-finger are not emulated.
+Two-finger scroll on those covers is translated to a classic mouse wheel (Samsung reports it as a two-pointer move, not `ACTION_SCROLL`). Remap toggles apply to the scroll deltas the same way they do to the cursor. Tap-to-click is synthesized from a short, still finger contact under pointer capture (physical click-pad press still works as before). Pinch-to-zoom and click-and-drag-with-second-finger are not emulated.
 
 On many Galaxy Tabs the Book Cover reports deltas rotated 90° clockwise under pointer capture (finger up moves the cursor right). That is undone by **Swap + Invert Y**. The toggles are re-read while streaming, so split-screen settings changes apply without reconnecting.
 
@@ -73,10 +73,10 @@ If the cover's cursor is 90° clockwise of the finger (finger up moves the curso
 Debug and release sideload builds are signed with `keystore/moonlight-fold.jks` (same cert as v12.2-fold.4), so updates install over previous Moonlight Fold builds without uninstalling. It does not update the official app; install it beside it.
 
 1. On the phone or tablet, enable Developer options and USB debugging, or allow installs from your file manager ("Install unknown apps").
-2. Copy `moonlight-fold.5-nonRoot-debug.apk` to the phone and open it, or from a computer:
+2. Copy `moonlight-fold.6-nonRoot-debug.apk` to the phone and open it, or from a computer:
 
 ```bash
-adb install -r moonlight-fold.5-nonRoot-debug.apk
+adb install -r moonlight-fold.6-nonRoot-debug.apk
 ```
 
 3. Launch **Moonlight Fold**. Pair and stream as usual. The pin-to-top option is already on; turn it off under Basic Settings if you want the keyboard to overlay the stream the way official Moonlight does.
