@@ -33,6 +33,7 @@ import com.limelight.ui.GameGestures;
 import com.limelight.ui.KeyboardStreamLayout;
 import com.limelight.ui.StreamView;
 import com.limelight.ui.TrackpadAxes;
+import com.limelight.ui.TrackpadFingerTracker;
 import com.limelight.ui.TrackpadTapClick;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ServerHelper;
@@ -102,6 +103,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         PerfOverlayListener, UsbDriverService.UsbDriverStateListener, View.OnKeyListener {
     private int lastButtonState = 0;
     private final TrackpadTapClick trackpadTapClick = new TrackpadTapClick();
+    private final TrackpadFingerTracker trackpadFingerTracker = new TrackpadFingerTracker();
 
     // Only 2 touches are supported
     private final TouchContext[] touchContextMap = new TouchContext[2];
@@ -2017,6 +2019,32 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 device != null ? device.getVendorId() : 0);
     }
 
+    private void captureTrackpadFingerBaseline(MotionEvent event) {
+        int count = event.getPointerCount();
+        int[] ids = new int[count];
+        float[] xs = new float[count];
+        float[] ys = new float[count];
+        for (int i = 0; i < count; i++) {
+            ids[i] = event.getPointerId(i);
+            xs[i] = event.getX(i);
+            ys[i] = event.getY(i);
+        }
+        trackpadFingerTracker.captureBaseline(count, ids, xs, ys);
+    }
+
+    private TrackpadAxes.Delta pollTrackpadMostMovedFinger(MotionEvent event) {
+        int count = event.getPointerCount();
+        int[] ids = new int[count];
+        float[] xs = new float[count];
+        float[] ys = new float[count];
+        for (int i = 0; i < count; i++) {
+            ids[i] = event.getPointerId(i);
+            xs[i] = event.getX(i);
+            ys[i] = event.getY(i);
+        }
+        return trackpadFingerTracker.pollMostMovedFinger(count, ids, xs, ys);
+    }
+
     // Touchpads advertise SOURCE_TOUCHPAD on the device. The event itself is
     // often SOURCE_MOUSE or SOURCE_MOUSE_RELATIVE. SOURCE_CLASS_POSITION is the
     // class bit inside SOURCE_TOUCHPAD and is not set on mice.
@@ -2099,14 +2127,24 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
                     if (actionMasked == MotionEvent.ACTION_CANCEL) {
                         trackpadTapClick.endGesture();
+                        trackpadFingerTracker.reset();
                     }
                     else if (actionMasked == MotionEvent.ACTION_DOWN) {
                         trackpadTapClick.onDown(event.getEventTime());
+                        trackpadFingerTracker.reset();
+                        captureTrackpadFingerBaseline(event);
                     }
-                    else if (event.getPointerCount() == 2
-                            && (trackpadTapClick.isPrimarySticky()
-                                || trackpadTapClick.isPlantedForDrag(event.getEventTime()))) {
-                        trackpadTapClick.armHoldDrag();
+                    else if (actionMasked == MotionEvent.ACTION_POINTER_DOWN
+                            || (event.getPointerCount() == 2
+                                && (trackpadTapClick.isPrimarySticky()
+                                    || trackpadTapClick.isPlantedForDrag(event.getEventTime())))) {
+                        if (event.getPointerCount() == 2
+                                && (trackpadTapClick.isPrimarySticky()
+                                    || trackpadTapClick.isPlantedForDrag(event.getEventTime()))) {
+                            trackpadTapClick.armHoldDrag();
+                        }
+                        // New finger: re-baseline so click-drag follows the mover.
+                        captureTrackpadFingerBaseline(event);
                     }
                     else if (event.getPointerCount() >= 2
                             && TrackpadAxes.isTwoFingerScroll(
@@ -2146,6 +2184,25 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                     // Send the deltas straight from the motion event
                     float axisX = inputCaptureProvider.getRelativeAxisX(event);
                     float axisY = inputCaptureProvider.getRelativeAxisY(event);
+
+                    // Click-hold + second finger: relative axes often only track
+                    // the stationary clicking finger (so the second finger does
+                    // nothing). Prefer the absolute delta of the finger that moved.
+                    boolean twoFingerClickDrag = externalTrackpad
+                            && event.getPointerCount() == 2
+                            && (primaryHeld || plantedForDrag);
+                    if (twoFingerClickDrag
+                            && event.getActionMasked() == MotionEvent.ACTION_MOVE) {
+                        TrackpadAxes.Delta finger =
+                                pollTrackpadMostMovedFinger(event);
+                        float fingerMag = Math.abs(finger.x) + Math.abs(finger.y);
+                        float relMag = Math.abs(axisX) + Math.abs(axisY);
+                        if (fingerMag > relMag) {
+                            axisX = finger.x;
+                            axisY = finger.y;
+                        }
+                    }
+
                     if (shouldRemapExternalTrackpad(event)) {
                         // Swap first, then invert each axis. See TrackpadAxes.remap.
                         TrackpadAxes.Delta remapped = TrackpadAxes.remap(
@@ -2276,6 +2333,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                         conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
                     }
                     trackpadTapClick.endGesture();
+                    trackpadFingerTracker.reset();
                 }
 
                 // Mouse secondary or stylus primary is right click (stylus down is left click)
