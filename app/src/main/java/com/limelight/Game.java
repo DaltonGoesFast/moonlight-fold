@@ -102,8 +102,6 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         PerfOverlayListener, UsbDriverService.UsbDriverStateListener, View.OnKeyListener {
     private int lastButtonState = 0;
     private final TrackpadTapClick trackpadTapClick = new TrackpadTapClick();
-    /** Hold-to-drag with a second finger when OS never sets BUTTON_PRIMARY. */
-    private boolean trackpadHoldDragActive;
 
     // Only 2 touches are supported
     private final TouchContext[] touchContextMap = new TouchContext[2];
@@ -2087,48 +2085,52 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                     changedButtons = buttonState ^ lastButtonState;
                 }
 
-                // Book Cover trackpads under pointer capture: OS tap-to-click often
-                // never sets BUTTON_PRIMARY (physical click-pad press still does).
-                // Track a short, still contact and synthesize a left click on lift.
-                // A held finger (past tap time) plus a second finger is click-drag.
-                boolean fingerHeldPastTap = trackpadTapClick.isHeldClick(event.getEventTime());
+                // Book Cover trackpads under pointer capture:
+                // - Tap-to-click often never sets BUTTON_PRIMARY (synthesize on lift).
+                // - Physical click often clears BUTTON_PRIMARY when a second finger
+                //   lands, so latch primary sticky until the gesture ends.
+                // - Plant one finger briefly, then move with another → click-drag
+                //   instead of two-finger scroll (much shorter than tap timeout).
                 if (externalTrackpad) {
                     int actionMasked = event.getActionMasked();
+                    trackpadTapClick.notePrimaryPressed(
+                            (buttonState & MotionEvent.BUTTON_PRIMARY) != 0
+                                    || (lastButtonState & MotionEvent.BUTTON_PRIMARY) != 0);
+
                     if (actionMasked == MotionEvent.ACTION_CANCEL) {
-                        trackpadHoldDragActive = false;
-                        trackpadTapClick.cancel();
-                    }
-                    else if (actionMasked == MotionEvent.ACTION_UP) {
-                        // Release synthesized hold-drag; tap-to-click still uses onUp later.
-                        trackpadHoldDragActive = false;
-                    }
-                    else if (event.getPointerCount() == 2 && fingerHeldPastTap) {
-                        trackpadHoldDragActive = true;
-                    }
-                    else if (event.getPointerCount() >= 2) {
-                        boolean primaryHeldEarly =
-                                (buttonState & MotionEvent.BUTTON_PRIMARY) != 0
-                                        || (lastButtonState & MotionEvent.BUTTON_PRIMARY) != 0
-                                        || trackpadHoldDragActive;
-                        if (TrackpadAxes.isTwoFingerScroll(
-                                event.getPointerCount(), primaryHeldEarly, false)) {
-                            trackpadTapClick.cancel();
-                        }
+                        trackpadTapClick.endGesture();
                     }
                     else if (actionMasked == MotionEvent.ACTION_DOWN) {
                         trackpadTapClick.onDown(event.getEventTime());
                     }
+                    else if (event.getPointerCount() == 2
+                            && (trackpadTapClick.isPrimarySticky()
+                                || trackpadTapClick.isPlantedForDrag(event.getEventTime()))) {
+                        trackpadTapClick.armHoldDrag();
+                    }
+                    else if (event.getPointerCount() >= 2
+                            && TrackpadAxes.isTwoFingerScroll(
+                                    event.getPointerCount(),
+                                    trackpadTapClick.isPrimarySticky(),
+                                    false)) {
+                        trackpadTapClick.cancelTap();
+                    }
 
-                    if (trackpadHoldDragActive) {
+                    // Keep left button down while sticky/hold-drag, but not on the
+                    // final UP — that must release so the host ends the drag.
+                    if (actionMasked != MotionEvent.ACTION_UP
+                            && actionMasked != MotionEvent.ACTION_CANCEL
+                            && (trackpadTapClick.isPrimarySticky()
+                                || trackpadTapClick.isHoldDragActive())) {
                         buttonState |= MotionEvent.BUTTON_PRIMARY;
                         changedButtons = buttonState ^ lastButtonState;
                     }
                 }
                 boolean primaryHeld = (buttonState & MotionEvent.BUTTON_PRIMARY) != 0
-                        || (lastButtonState & MotionEvent.BUTTON_PRIMARY) != 0
-                        || trackpadHoldDragActive;
-                fingerHeldPastTap = trackpadTapClick.isHeldClick(event.getEventTime())
-                        || trackpadHoldDragActive;
+                        || trackpadTapClick.isPrimarySticky()
+                        || trackpadTapClick.isHoldDragActive();
+                boolean plantedForDrag = trackpadTapClick.isPlantedForDrag(event.getEventTime())
+                        || trackpadTapClick.isHoldDragActive();
 
                 // Ignore mouse input if we're not capturing from our input source
                 if (!inputCaptureProvider.isCapturingActive()) {
@@ -2157,12 +2159,22 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
                     // Samsung Book Cover (and similar) send two-finger scroll as
                     // ACTION_MOVE with pointerCount == 2 on the relative axes,
-                    // not ACTION_SCROLL with AXIS_VSCROLL. If primary is held
-                    // (or one finger was held past tap time), the second finger
-                    // drags the cursor instead — click-and-drag for files, etc.
+                    // not ACTION_SCROLL with AXIS_VSCROLL. Click held / planted
+                    // finger + second finger keeps cursor drag instead.
                     // See moonlight-android#1569 / #1259.
-                    if (externalTrackpad && TrackpadAxes.isTwoFingerScroll(
-                            event.getPointerCount(), primaryHeld, fingerHeldPastTap)) {
+                    boolean twoFingerScroll = externalTrackpad
+                            && TrackpadAxes.isTwoFingerScroll(
+                                    event.getPointerCount(), primaryHeld, plantedForDrag);
+                    // Prefer the platform scroll classification when present.
+                    if (externalTrackpad
+                            && event.getPointerCount() == 2
+                            && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
+                            && event.getClassification()
+                                == MotionEvent.CLASSIFICATION_TWO_FINGER_SWIPE
+                            && !primaryHeld) {
+                        twoFingerScroll = true;
+                    }
+                    if (twoFingerScroll) {
                         if (axisX != 0 || axisY != 0) {
                             TrackpadAxes.Scroll scroll =
                                     TrackpadAxes.classicTwoFingerScroll(axisX, axisY);
@@ -2253,9 +2265,8 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                     }
                 }
 
-                // Always end the tap gesture on lift so a slide does not leave
-                // contact stuck active; only fire a click when it was a tap and
-                // the OS did not already deliver BUTTON_PRIMARY.
+                // Final finger-up: optional tap click, then clear sticky primary /
+                // hold-drag so the next gesture starts clean.
                 if (externalTrackpad && event.getActionMasked() == MotionEvent.ACTION_UP) {
                     boolean tapped = trackpadTapClick.onUp(event.getEventTime());
                     if (tapped
@@ -2264,6 +2275,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                         conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_LEFT);
                         conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
                     }
+                    trackpadTapClick.endGesture();
                 }
 
                 // Mouse secondary or stylus primary is right click (stylus down is left click)

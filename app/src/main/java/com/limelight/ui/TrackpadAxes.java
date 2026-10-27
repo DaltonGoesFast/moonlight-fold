@@ -152,14 +152,14 @@ public final class TrackpadAxes {
     }
 
     /**
-     * Two fingers without a held primary click is scroll. Primary held (or a
-     * finger held past tap time) plus a second finger is click-drag: the
-     * cursor should move with the button still down, not wheel-scroll.
+     * Two fingers without an active click/plant is scroll. Primary sticky
+     * (including a physical click Samsung clears on the second finger) or a
+     * planted first finger means click-drag instead.
      */
     public static boolean isTwoFingerScroll(int pointerCount,
-                                            boolean primaryButtonHeld,
-                                            boolean fingerHeldPastTap) {
-        return pointerCount == 2 && !primaryButtonHeld && !fingerHeldPastTap;
+                                            boolean primaryHeldOrSticky,
+                                            boolean plantedForDrag) {
+        return pointerCount == 2 && !primaryHeldOrSticky && !plantedForDrag;
     }
 
     /** Absolute position, with the reference maxima swapped alongside the axes. */

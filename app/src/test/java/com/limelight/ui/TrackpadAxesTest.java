@@ -150,7 +150,7 @@ public class TrackpadAxesTest {
     }
 
     @Test
-    public void twoFingerWithoutClickIsScroll() {
+    public void twoFingerWithoutClickOrPlantIsScroll() {
         assertTrue(TrackpadAxes.isTwoFingerScroll(2, false, false));
         assertFalse(TrackpadAxes.isTwoFingerScroll(2, true, false));
         assertFalse(TrackpadAxes.isTwoFingerScroll(2, false, true));
