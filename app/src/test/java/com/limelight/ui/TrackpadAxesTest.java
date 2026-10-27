@@ -150,6 +150,14 @@ public class TrackpadAxesTest {
     }
 
     @Test
+    public void twoFingerWithoutClickIsScroll() {
+        assertTrue(TrackpadAxes.isTwoFingerScroll(2, false, false));
+        assertFalse(TrackpadAxes.isTwoFingerScroll(2, true, false));
+        assertFalse(TrackpadAxes.isTwoFingerScroll(2, false, true));
+        assertFalse(TrackpadAxes.isTwoFingerScroll(1, false, false));
+    }
+
+    @Test
     public void classicTwoFingerScrollUsesMouseWheelDirection() {
         // Finger down (positive Y) scrolls down: negative high-res wheel.
         TrackpadAxes.Scroll down = TrackpadAxes.classicTwoFingerScroll(0f, 3f);

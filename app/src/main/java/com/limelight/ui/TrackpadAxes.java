@@ -151,6 +151,17 @@ public final class TrackpadAxes {
                 (short) (remappedDeltaX * TWO_FINGER_SCROLL_SCALE));
     }
 
+    /**
+     * Two fingers without a held primary click is scroll. Primary held (or a
+     * finger held past tap time) plus a second finger is click-drag: the
+     * cursor should move with the button still down, not wheel-scroll.
+     */
+    public static boolean isTwoFingerScroll(int pointerCount,
+                                            boolean primaryButtonHeld,
+                                            boolean fingerHeldPastTap) {
+        return pointerCount == 2 && !primaryButtonHeld && !fingerHeldPastTap;
+    }
+
     /** Absolute position, with the reference maxima swapped alongside the axes. */
     public static final class Absolute {
         public final int x;

@@ -46,6 +46,15 @@ public final class TrackpadTapClick {
     }
 
     /**
+     * True when a finger has been held down longer than a tap. Used so
+     * click-and-drag with a second finger is cursor motion (button held /
+     * hold-to-drag) instead of two-finger scroll.
+     */
+    public boolean isHeldClick(long eventTimeMs) {
+        return contactActive && (eventTimeMs - downTimeMs) > TAP_TIME_MS;
+    }
+
+    /**
      * Ends the contact. Returns true when this lift should emit a left click
      * (short duration, little movement, and the contact was still active).
      */

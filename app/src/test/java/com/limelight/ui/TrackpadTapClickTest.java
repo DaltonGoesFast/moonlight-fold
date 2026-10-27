@@ -48,4 +48,17 @@ public class TrackpadTapClickTest {
     public void upWithoutDownIsNotATap() {
         assertFalse(new TrackpadTapClick().onUp(1000));
     }
+
+    @Test
+    public void heldPastTapTimeIsHeldClick() {
+        TrackpadTapClick tap = new TrackpadTapClick();
+        tap.onDown(1000);
+        assertFalse(tap.isHeldClick(1000 + TrackpadTapClick.TAP_TIME_MS));
+        assertTrue(tap.isHeldClick(1000 + TrackpadTapClick.TAP_TIME_MS + 1));
+    }
+
+    @Test
+    public void noContactIsNotHeldClick() {
+        assertFalse(new TrackpadTapClick().isHeldClick(5000));
+    }
 }
